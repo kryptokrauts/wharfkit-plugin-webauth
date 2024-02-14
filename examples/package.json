@@ -10,8 +10,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@wharfkit/session": "^1.1.1",
-    "@wharfkit/web-renderer": "^1.1.1",
+    "@wharfkit/session": "1.2.8",
+    "@wharfkit/web-renderer": "1.2.3",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },
