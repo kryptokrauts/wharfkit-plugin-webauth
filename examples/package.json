@@ -10,6 +10,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@wharfkit/antelope": "1.0.7",
+    "@wharfkit/contract": "1.1.5",
     "@wharfkit/session": "1.2.8",
     "@wharfkit/web-renderer": "1.2.3",
     "react": "^18.2.0",
@@ -29,5 +31,8 @@
     "tailwindcss": "^3.3.5",
     "typescript": "^5.0.2",
     "vite": "^4.5.2"
+  },
+  "resolutions": {
+    "@wharfkit/antelope": "1.0.7"
   }
 }

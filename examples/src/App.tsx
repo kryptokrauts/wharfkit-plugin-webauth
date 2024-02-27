@@ -5,22 +5,89 @@ import './App.css'
 import WebRenderer from '@wharfkit/web-renderer';
 import SessionKit, { Session } from '@wharfkit/session';
 import { WalletPluginWebAuth } from "../../"
+import {Contract as AtomicMarketContract } from "./atomicmarket";
+import { APIClient, Asset } from '@wharfkit/antelope';
 
 const webRenderer = new WebRenderer()
 
+const XPR_MAINNET = {
+  id: "384da888112027f0321850a169f737c33e53b388aad48b5adace4bab97f437e0",
+  url: "https://proton.eosusa.io",
+  explorer: {
+    prefix: 'https://explorer.xprnetwork.org/transaction/',
+    suffix: ''
+  }
+}
+
+const apiClient = new APIClient({ url: "https://proton.eosusa.io" })
+
+interface AssetDetail {
+  contract: string,
+  precision: number,
+  token: string,
+}
+
+const supportedAssets: Array<AssetDetail> = [
+  {
+    "contract": "eosio.token",
+    "precision": 4,
+    "token": "XPR"
+  },
+  {
+    "contract": "loan.token",
+    "precision": 4,
+    "token": "LOAN"
+  },
+  {
+    "contract": "redemption",
+    "precision": 2,
+    "token": "RDM"
+  },
+  {
+    "contract": "thomashp",
+    "precision": 5,
+    "token": "PIXEL"
+  },
+  {
+    "contract": "xtokens",
+    "precision": 6,
+    "token": "XUSDC"
+  },
+  {
+    "contract": "xtokens",
+    "precision": 8,
+    "token": "XBTC"
+  },
+  {
+    "contract": "xtokens",
+    "precision": 8,
+    "token": "XETH"
+  },
+  {
+    "contract": "xtokens",
+    "precision": 6,
+    "token": "FOOBAR"
+  },
+  {
+    "contract": "xtokens",
+    "precision": 8,
+    "token": "METAL"
+  },
+  {
+    "contract": "xtokens",
+    "precision": 8,
+    "token": "XMT"
+  }
+]
+
+const amContract = new AtomicMarketContract({client: apiClient, account: 'atomicmarket'})
+
 const sessionKit = new SessionKit({
-  appName: "wharfkit",
-  chains: [
-    {
-      id: "71ee83bcf52142d61019d95f9cc5427ba6a0d7ff8accd9e2088ae2abeaf3d3dd",
-      url: "https://testnet-rpc.api.protondex.com",
-    },
-  ],
+  appName: "soonmarket",
+  chains: [XPR_MAINNET],
   ui: webRenderer,
   walletPlugins: [
-    new WalletPluginWebAuth({
-      scheme: 'proton-dev'
-    }),
+    new WalletPluginWebAuth(),
   ],
 })
 
@@ -33,7 +100,7 @@ function App() {
   useEffect(() => {
     const restoreSession = async () => {
       const session = await sessionKit.restore()
-      setSession(session);
+      setSession(session)
     }
 
     restoreSession().catch(console.error);
@@ -69,6 +136,7 @@ function App() {
     setBroadcast(event.currentTarget.checked);
   }
   
+  // regular token transfer action 
   async function doTransfer() {
     if(sess) {
       const data: any = {
@@ -83,8 +151,43 @@ function App() {
         },
       }
 
-      const result2 = await sess.transact({ action: data }, { broadcast })
-      console.log('Transact result: ', result2);
+      const result = await sess.transact({ action: data }, { broadcast })
+      console.log('Transact result: ', result);
+    }
+  }
+
+  async function doWithdrawAmBalance() {
+    // get market balance (array of assets/quantities)
+    const amBalanceRow = await amContract.table('balances').get(sess?.actor.toString())
+    const quantities: Array<Asset> = amBalanceRow ? amBalanceRow.quantities : [];
+    console.log(quantities.toString());
+    const actions = []; // the actions to propose for a tx
+    for(let i=0; i<quantities.length; i++) {
+      actions.push(amContract.action('withdraw', {
+        owner: sess!.actor.toString(),
+        token_to_withdraw: quantities[i]
+      },
+      {
+        authorization: [
+          {
+            actor: sess!.actor.toString(),
+            permission: sess!.permission.toString(),
+          },
+        ],
+      }
+      ));
+    }
+    console.log(actions);
+    const result = await sess?.transact({ actions: actions}, { broadcast })
+    console.log('Transact result: ', result);
+  }
+
+  async function doGetBalances() {
+    // get balances for all supported tokens
+    for(let i=0; i<supportedAssets.length; i++) {
+      const asset = supportedAssets[i];
+      const balance = await apiClient.v1.chain.get_currency_balance(asset.contract, sess!.actor.toString(), asset.token);
+      console.log(balance.toString());
     }
   }
 
@@ -167,6 +270,22 @@ function App() {
                   disabled={!canTransfer}
                 >
                   Transfer
+                </button>
+              </div>
+              <div>
+                <button type="button"
+                  className="cursor-pointer whitespace-nowrap bg-purple-100 border border-transparent rounded-md py-2 px-4 inline-flex items-center justify-center text-base font-medium text-purple-600 hover:bg-purple-200 disabled:bg-zinc-100 disabled:text-zinc-500"
+                  onClick={doWithdrawAmBalance}
+                >
+                  Withdraw AM Balance
+                </button>
+              </div>
+              <div>
+                <button type="button"
+                  className="cursor-pointer whitespace-nowrap bg-purple-100 border border-transparent rounded-md py-2 px-4 inline-flex items-center justify-center text-base font-medium text-purple-600 hover:bg-purple-200 disabled:bg-zinc-100 disabled:text-zinc-500"
+                  onClick={doGetBalances}
+                >
+                  Log Balances
                 </button>
               </div>
             </>
